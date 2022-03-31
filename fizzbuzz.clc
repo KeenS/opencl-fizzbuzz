@@ -1,0 +1,90 @@
+void
+memcpy(local char *dst, constant char * src, size_t n)
+{
+  for(size_t i = 0; i < n; i++) {
+    dst[i] = src[i];
+  }
+}
+
+
+int
+powi(int base, int e)
+{
+  return e == 0 ? 1 : base * powi(base, e - 1);
+}
+
+int
+itoa(local char *dst, int n)
+{
+  int ndigits = (int)log10((double)n) + 1;
+  int d = powi(10, ndigits - 1);
+  int i;
+  for(i = 0; i < ndigits; i++) {
+    dst[i] = '0' + (n / d);
+    n = n % d;
+    d = d / 10;
+  }
+  dst[i] = '\n';
+  return i+1;
+}
+
+kernel void fizzbuzz(global char *gdst, local char *dst, int ndigits)
+{
+  int n = get_global_id(0) * 15;
+  size_t index = (ndigits + 1) * get_local_id(0) * 15;
+  size_t start = index;
+  // 0
+  memcpy(&dst[index], "FizzBuzz\n", 9);
+  index += 9;
+  // 1
+  index += itoa(&dst[index], n + 1);
+  // 2
+  index += itoa(&dst[index], n + 2);
+  // 3
+  memcpy(&dst[index], "Fizz\n", 5);
+  index += 5;
+  // 4
+  index += itoa(&dst[index], n + 4);
+  // 5
+  memcpy(&dst[index], "Buzz\n", 5);
+  index += 5;
+  // 6
+  memcpy(&dst[index], "Fizz\n", 5);
+  index += 5;
+  // 7
+  index += itoa(&dst[index], n + 7);
+  // 8
+  index += itoa(&dst[index], n + 8);
+  // 9
+  memcpy(&dst[index], "Fizz\n", 5);
+  index += 5;
+  // 10
+  memcpy(&dst[index], "Buzz\n", 5);
+  index += 5;
+  // 11
+  index += itoa(&dst[index], n + 11);
+  // 12
+  memcpy(&dst[index], "Fizz\n", 5);
+  index += 5;
+  // 13
+  index += itoa(&dst[index], n + 13);
+  // 14
+  index += itoa(&dst[index], n + 14);
+  dst[index] = '\0';
+
+  barrier(CLK_LOCAL_MEM_FENCE);
+  if (get_local_id(0) == 0) {
+    size_t gindex = get_global_id(0) * 15 * (ndigits + 1) ;
+    size_t gstart = gindex;
+    gindex += 8;
+    for(size_t i = 0; i < get_local_size(0); i++) {
+      size_t j = start + i * 15 * (ndigits + 1);
+      while(dst[j]) {
+        gdst[gindex++] = dst[j++];
+      }
+    }
+    gdst[gindex] = '\0';
+    size_t size = gindex - gstart - 8;
+    *(size_t *)(&gdst[gstart]) = size ;
+  }
+}
